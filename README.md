@@ -1,1 +1,0 @@
-# Vitis-AIv2.5_resnet50_cifar100
