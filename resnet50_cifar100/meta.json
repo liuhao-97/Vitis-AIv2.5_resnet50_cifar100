@@ -1,0 +1,8 @@
+{
+    "lib": "libvart-dpu-runner.so",
+    "filename": "resnet_xir.xmodel",
+    "kernel": [
+        "subgraph_ResNet__ResNet_AdaptiveAvgPool2d_avgpool__8351_i0"
+    ],
+    "target": "DPUCAHX8H_ISA2"
+}
