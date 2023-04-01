@@ -1,0 +1,11 @@
+Profile Summary
+Generated on: 2023-04-01 13:26:51
+XRT build version: 0.0.0
+Build version branch: N/A
+Build version hash: N/A
+Build version date: N/A
+Target devices: N/A
+
+DPU Summary
+Kernel Name,Number Of Runs,CU Full Name,Minimum Time (ms),Average Time (ms),Maximum Time (ms),Workload(GOP),DPU Performance(GOP/s),Mem IO(MB),Mem Bandwidth(MB/s),
+

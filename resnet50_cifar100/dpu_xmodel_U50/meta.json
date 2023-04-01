@@ -1,0 +1,8 @@
+{
+    "lib": "libvart-dpu-runner.so",
+    "filename": "resnet50_cifar100_U50.xmodel",
+    "kernel": [
+        "subgraph_ResNet__ResNet_AdaptiveAvgPool2d_avgpool__8308_i0"
+    ],
+    "target": "DPUCAHX8H_ISA2"
+}

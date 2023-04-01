@@ -104,7 +104,6 @@ docker_run_params=$(cat <<-END
     $DEFAULT_COMMAND
 END
 )
-
 ##############################
 touch .confirm 
 if [[ $IMAGE_NAME == *"gpu"* ]]; then

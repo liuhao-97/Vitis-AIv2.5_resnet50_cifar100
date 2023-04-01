@@ -113,8 +113,7 @@
   "output":
   {
     "ResNet::ResNet/QuantStub[quant_stub]/input.1":[8,4],
-    "ResNet::ResNet/ReLU[relu]/6941":[8,4],
-    "ResNet::ResNet/MaxPool2d[maxpool]/input.7":[8,4],
+    "ResNet::ResNet/ReLU[relu]/input.7":[8,4],
     "ResNet::ResNet/Sequential[layer1]/Bottleneck[0]/ReLU[relu1]/input.13":[8,4],
     "ResNet::ResNet/Sequential[layer1]/Bottleneck[0]/ReLU[relu2]/input.19":[8,4],
     "ResNet::ResNet/Sequential[layer1]/Bottleneck[0]/Conv2d[conv3]/input.21":[8,4],
@@ -183,7 +182,7 @@
     "ResNet::ResNet/Sequential[layer4]/Bottleneck[2]/ReLU[relu2]/input.297":[8,4],
     "ResNet::ResNet/Sequential[layer4]/Bottleneck[2]/Conv2d[conv3]/input.299":[8,4],
     "ResNet::ResNet/Sequential[layer4]/Bottleneck[2]/ReLU[relu3]/input.303":[8,4],
-    "ResNet::ResNet/AdaptiveAvgPool2d[avgpool]/8351":[8,4],
+    "ResNet::ResNet/AdaptiveAvgPool2d[avgpool]/8308":[8,4],
     "ResNet::ResNet/Linear[fc]/inputs":[8,4]
   },
   "input":

@@ -1,0 +1,6 @@
+DPU Throughput
+timestamp,FPS
+
+DDR Bandwidth
+timestamp,DDRC_PORT_S1_Read,DDRC_PORT_S1_Write,DDRC_PORT_S2_Read,DDRC_PORT_S2_Write,DDRC_PORT_S3_Read,DDRC_PORT_S3_Write,DDRC_PORT_S4_Read,DDRC_PORT_S4_Write,DDRC_PORT_S5_Read,DDRC_PORT_S5_Write,
+

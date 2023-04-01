@@ -9,7 +9,6 @@ from torch import optim
 from torchvision.utils import save_image
 from torchvision.datasets import CIFAR100
 
-
 import argparse
 import os
 import shutil
@@ -25,11 +24,13 @@ from pytorch_nndct import nn as nndct_nn
 from pytorch_nndct.nn.modules import functional
 from pytorch_nndct import QatProcessor
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
     '--pretrained',
-    default='/scratch/workspace/models/resnet18.pth',
+    default='/workspace/resnet50_cifar100/resnet50-200-best.pth',
     help='Pre-trained model file path.')
 parser.add_argument(
     '--workers',
@@ -246,13 +247,16 @@ class ResNet(nn.Module):
             raise ValueError(
                 "replace_stride_with_dilation should be None "
                 "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
+
         self.groups = groups
         self.base_width = width_per_group
+
         self.conv1 = nn.Conv2d(
-            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+            3, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False
+        )
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(
             block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
@@ -320,7 +324,7 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.maxpool(x)
+        # x = self.maxpool(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
@@ -598,25 +602,24 @@ def train(model, train_loader, val_loader, criterion, gpu):
                     }, is_best, args.save_dir)
 
 
-# def evaluate(net, test_data):
-#     net.eval()
-#     with torch.no_grad():
-#         correct = 0
-#         test_num = test_data.dataset.data.shape[0]
-#         total_test_loss = []
+def evaluate(net, test_data):
+    net.eval()
+    with torch.no_grad():
+        correct = 0
+        test_num = test_data.dataset.data.shape[0]
+        total_test_loss = []
 
-#         for i, data in enumerate(test_data):
+        for i, data in enumerate(test_data):
 
-#             inputs, labels = data #[100,3,32,32]
-#             # print(len(inputs[0]))
+            inputs, labels = data  # [100,3,32,32]
+            # print(len(inputs[0]))
 
-#             # inputs = inputs.cuda()
-#             # labels = labels.cuda()
-#             outputs = net(inputs)
-#             correct += torch.sum(torch.argmax(outputs, dim=1) == labels)
+            # inputs = inputs.cuda()
+            # labels = labels.cuda()
+            outputs = net(inputs)
+            correct += torch.sum(torch.argmax(outputs, dim=1) == labels)
 
-
-#     return float(correct)/test_num
+    return float(correct)/test_num
 
 # def gen_calib( test_data):
 #     with torch.no_grad():
@@ -624,6 +627,7 @@ def train(model, train_loader, val_loader, criterion, gpu):
 #             inputs, labels = data #[100,3,32,32]
 #             # print(len(inputs[0]))
 #             inputs_calib = inputs
+
 
 #     return inputs_calib
 if __name__ == '__main__':
@@ -637,12 +641,12 @@ if __name__ == '__main__':
             transforms.ToTensor(),
             normalize,
         ]), download=True),
-        batch_size=128,shuffle=True, num_workers=4)
+        batch_size=128, shuffle=True, num_workers=4)
 
     test_dataset = CIFAR100(root='./data', train=False, transform=transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ]))
+        transforms.ToTensor(),
+        normalize,
+    ]))
 
     test_loader = torch.utils.data.DataLoader(
         CIFAR100(root='./data', train=False, transform=transforms.Compose([
@@ -651,12 +655,14 @@ if __name__ == '__main__':
         ])),
         batch_size=100, shuffle=False, num_workers=4)
 
-    model = resnet50()
+    model = resnet50(pretrained=True)
+    model = model.to(device)
+    # model.load_state_dict(torch.load('resnet50-200-best.pth'))  # 0.7931
+
     criterion = nn.CrossEntropyLoss()
     gpu = 0
     inputs = torch.randn([args.train_batch_size, 3, 32, 32],
                          dtype=torch.float32).cuda(gpu)
-
 
     qat_processor = QatProcessor(
         model, inputs, bitwidth=8, device=torch.device('cuda:{}'.format(gpu)))
