@@ -30,7 +30,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument(
     '--pretrained',
-    default='/workspace/resnet50_cifar100/resnet50-200-best.pth',
+    default='/workspace/resnet50_cifar100/resnet18-200-regular.pth',
     help='Pre-trained model file path.')
 parser.add_argument(
     '--workers',
@@ -91,6 +91,7 @@ parser.add_argument(
 parser.add_argument(
     '--output_dir', default='qat_result', help='Directory to save qat result.')
 args, _ = parser.parse_known_args()
+
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -159,6 +160,7 @@ class BasicBlock(nn.Module):
             identity = self.downsample(x)
 
         out = self.skip_add(out, identity)
+        # out = out+identity
         out = self.relu2(out)
 
         return out
@@ -247,7 +249,6 @@ class ResNet(nn.Module):
             raise ValueError(
                 "replace_stride_with_dilation should be None "
                 "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
-
         self.groups = groups
         self.base_width = width_per_group
 
@@ -256,7 +257,7 @@ class ResNet(nn.Module):
         )
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
-        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(
             block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
@@ -324,7 +325,6 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        # x = self.maxpool(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
@@ -346,16 +346,15 @@ def _resnet(arch, block, layers, pretrained, progress, **kwargs):
     return model
 
 
-def resnet50(pretrained=False, progress=True, **kwargs):
-    r"""ResNet-50 model from
+def resnet18(pretrained=False, progress=True, **kwargs):
+    r"""ResNet-18 model from
       `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>'_
       Args:
           pretrained (bool): If True, returns a model pre-trained on ImageNet
           progress (bool): If True, displays a progress bar of the download to stderr
       """
-    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
+    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
                    **kwargs)
-
 
 def train_one_step(model, inputs, criterion, optimizer, step, gpu=None):
     # switch to train mode
@@ -655,9 +654,8 @@ if __name__ == '__main__':
         ])),
         batch_size=100, shuffle=False, num_workers=4)
 
-    model = resnet50(pretrained=True)
+    model = resnet18(pretrained=True)
     model = model.to(device)
-    # model.load_state_dict(torch.load('resnet50-200-best.pth'))  # 0.7931
 
     criterion = nn.CrossEntropyLoss()
     gpu = 0

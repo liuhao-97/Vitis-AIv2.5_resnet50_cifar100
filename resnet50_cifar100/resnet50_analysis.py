@@ -84,7 +84,7 @@ MEANS = [_B_MEAN, _G_MEAN, _R_MEAN]
 SCALES = [1.0, 1.0, 1.0]
 
 
-def preprocess_one_image_fn(image_path, fix_scale, width=224, height=224):
+def preprocess_one_image_fn(image_path, fix_scale, width=32, height=32):
     means = MEANS
     scales = SCALES
     image = cv2.imread(image_path)
@@ -99,7 +99,8 @@ def preprocess_one_image_fn(image_path, fix_scale, width=224, height=224):
 
 
 SCRIPT_DIR = get_script_directory()
-calib_image_dir = SCRIPT_DIR + "/../images/"
+calib_image_dir = SCRIPT_DIR + "/subimage/"
+# print(calib_image_dir)
 global threadnum
 threadnum = 0
 """
@@ -168,6 +169,7 @@ def main(argv):
     global threadnum
 
     listimage = os.listdir(calib_image_dir)
+    
     threadAll = []
     threadnum = int(argv[1])
     i = 0
@@ -196,7 +198,7 @@ def main(argv):
       2. If users provide a huge dataset, e.g. 50000 images in the directory, they can
          use the variable to control the test time, and no need to run the whole dataset.
     """
-    cnt = 360
+    cnt = 100
     """run with batch """
     time_start = time.time()
     for i in range(int(threadnum)):

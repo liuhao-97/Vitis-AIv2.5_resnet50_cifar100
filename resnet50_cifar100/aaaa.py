@@ -63,7 +63,57 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(
         in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
+class BasicBlock(nn.Module):
+    expansion = 1
 
+    def __init__(self,
+                 inplanes,
+                 planes,
+                 stride=1,
+                 downsample=None,
+                 groups=1,
+                 base_width=64,
+                 dilation=1,
+                 norm_layer=None):
+        super(BasicBlock, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        if groups != 1 or base_width != 64:
+            raise ValueError(
+                'BasicBlock only supports groups=1 and base_width=64')
+        if dilation > 1:
+            raise NotImplementedError(
+                "Dilation > 1 not supported in BasicBlock")
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = norm_layer(planes)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = norm_layer(planes)
+        self.downsample = downsample
+        self.stride = stride
+
+        self.skip_add = functional.Add()
+        self.relu2 = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu1(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out = self.skip_add(out, identity)
+        # out = out+identity
+        out = self.relu2(out)
+
+        return out
 class Bottleneck(nn.Module):
     expansion = 4
 
@@ -158,7 +208,9 @@ class ResNet(nn.Module):
 
         self.groups = groups
         self.base_width = width_per_group
-      
+        # self.conv1 = nn.Conv2d(
+        #     3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        # )
         self.conv1 = nn.Conv2d(
             3, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False
         )
@@ -245,6 +297,7 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
+        # x = self.maxpool(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
@@ -276,6 +329,15 @@ def resnet50(pretrained=False, progress=True, **kwargs):
     return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
                    **kwargs)
 
+def resnet18(pretrained=False, progress=True, **kwargs):
+    r"""ResNet-18 model from
+      `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>'_
+      Args:
+          pretrained (bool): If True, returns a model pre-trained on ImageNet
+          progress (bool): If True, displays a progress bar of the download to stderr
+      """
+    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
+                   **kwargs)
 
 def train(epoch):
 
@@ -361,16 +423,24 @@ def evaluate(net, test_data):
         correct = 0
         test_num = test_data.dataset.data.shape[0]
         total_test_loss = []
+        top5_correct=0
 
         for i, data in enumerate(test_data):
             inputs, labels = data
             inputs = inputs.cuda()
             labels = labels.cuda()
             outputs = net(inputs)
-            correct += torch.sum(torch.argmax(outputs, dim=1) == labels)
+            # correct += torch.sum(torch.argmax(outputs, dim=1) == labels)
+
+
+            _, predicted = torch.topk(outputs, k=5, dim=1)
+            correct += torch.sum(predicted[:, 0] == labels)
+            top5_correct += torch.sum(predicted == labels.unsqueeze(1))
+
 
     net.train()
-    return float(correct)/test_num
+    # return float(correct)/test_num,float(top5_correct)/test_num
+    return float(top5_correct)/test_num
 
 
 if __name__ == '__main__':
@@ -414,81 +484,9 @@ if __name__ == '__main__':
         shuffle=True
     )
 
-    net = resnet50().to(device)
+    model = resnet18().to(device)
+    model.load_state_dict(torch.load('resnet18-200-regular.pth'))
+    acc_top5 = evaluate(model,cifar100_test_loader)
+  
+    print(acc_top5)
 
-    loss_function = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=args.lr,
-                          momentum=0.9, weight_decay=5e-4)
-    train_scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=settings.MILESTONES, gamma=0.2)  # learning rate decay
-    iter_per_epoch = len(cifar100_training_loader)
-    warmup_scheduler = WarmUpLR(optimizer, iter_per_epoch * args.warm)
-
-    if args.resume:
-        recent_folder = most_recent_folder(os.path.join(
-            settings.CHECKPOINT_PATH, args.net), fmt=settings.DATE_FORMAT)
-        if not recent_folder:
-            raise Exception('no recent folder were found')
-
-        checkpoint_path = os.path.join(
-            settings.CHECKPOINT_PATH, args.net, recent_folder)
-
-    else:
-        checkpoint_path = os.path.join(
-            settings.CHECKPOINT_PATH, args.net, settings.TIME_NOW)
-
-    # create checkpoint folder to save model
-    if not os.path.exists(checkpoint_path):
-        os.makedirs(checkpoint_path)
-    checkpoint_path = os.path.join(checkpoint_path, '{net}-{epoch}-{type}.pth')
-
-    best_acc = 0.0
-    if args.resume:
-        best_weights = best_acc_weights(os.path.join(
-            settings.CHECKPOINT_PATH, args.net, recent_folder))
-        if best_weights:
-            weights_path = os.path.join(
-                settings.CHECKPOINT_PATH, args.net, recent_folder, best_weights)
-            print('found best acc weights file:{}'.format(weights_path))
-            print('load best training file to test acc...')
-            net.load_state_dict(torch.load(weights_path))
-            best_acc = eval_training(tb=False)
-            print('best acc is {:0.2f}'.format(best_acc))
-
-        recent_weights_file = most_recent_weights(os.path.join(
-            settings.CHECKPOINT_PATH, args.net, recent_folder))
-        if not recent_weights_file:
-            raise Exception('no recent weights file were found')
-        weights_path = os.path.join(
-            settings.CHECKPOINT_PATH, args.net, recent_folder, recent_weights_file)
-        print('loading weights file {} to resume training.....'.format(weights_path))
-        net.load_state_dict(torch.load(weights_path))
-
-        resume_epoch = last_epoch(os.path.join(
-            settings.CHECKPOINT_PATH, args.net, recent_folder))
-
-    for epoch in range(1, settings.EPOCH + 1):
-        if epoch > args.warm:
-            train_scheduler.step(epoch)
-
-        if args.resume:
-            if epoch <= resume_epoch:
-                continue
-
-        train(epoch)
-        acc = eval_training(epoch)
-
-        # start to save best performance model after learning rate decay to 0.01
-        if epoch > settings.MILESTONES[1] and best_acc < acc:
-            weights_path = checkpoint_path.format(
-                net=args.net, epoch=epoch, type='best')
-            print('saving weights file to {}'.format(weights_path))
-            torch.save(net.state_dict(), weights_path)
-            best_acc = acc
-            continue
-
-        if not epoch % settings.SAVE_EPOCH:
-            weights_path = checkpoint_path.format(
-                net=args.net, epoch=epoch, type='regular')
-            print('saving weights file to {}'.format(weights_path))
-            torch.save(net.state_dict(), weights_path)
